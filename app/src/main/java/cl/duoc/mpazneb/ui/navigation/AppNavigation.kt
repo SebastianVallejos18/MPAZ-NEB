@@ -1,5 +1,9 @@
 package cl.duoc.mpazneb.ui.navigation
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -15,13 +19,14 @@ import cl.duoc.mpazneb.ui.screens.DetalleAsignacionScreen
 import cl.duoc.mpazneb.ui.screens.FormularioActividadScreen
 import cl.duoc.mpazneb.ui.screens.FormularioPreguntaScreen
 import cl.duoc.mpazneb.ui.screens.IngresoEstudianteScreen
-import cl.duoc.mpazneb.ui.screens.InicioProvisorioScreen
 import cl.duoc.mpazneb.ui.screens.LoginScreen
 import cl.duoc.mpazneb.ui.screens.PreguntasActividadScreen
 import cl.duoc.mpazneb.ui.screens.ResultadosScreen
 import cl.duoc.mpazneb.ui.screens.SesionEstudianteScreen
 import cl.duoc.mpazneb.viewmodel.SesionViewModel
 
+private const val DURACION_TRANSICION_MS = 1000
+private const val FRACCION_DESPLAZAMIENTO = 4
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
@@ -35,11 +40,37 @@ fun AppNavigation() {
         }
     }
 
-
-
     NavHost(
         navController = navController,
-        startDestination = Ruta.Login.ruta
+        startDestination = Ruta.Login.ruta,
+        enterTransition = {
+            slideIntoContainer(
+                towards = AnimatedContentTransitionScope.SlideDirection.Start,
+                animationSpec = tween(DURACION_TRANSICION_MS),
+                initialOffset = { ancho -> ancho / FRACCION_DESPLAZAMIENTO }
+            ) + fadeIn(tween(DURACION_TRANSICION_MS))
+        },
+        exitTransition = {
+            slideOutOfContainer(
+                towards = AnimatedContentTransitionScope.SlideDirection.Start,
+                animationSpec = tween(DURACION_TRANSICION_MS),
+                targetOffset = { ancho -> ancho / FRACCION_DESPLAZAMIENTO }
+            ) + fadeOut(tween(DURACION_TRANSICION_MS))
+        },
+        popEnterTransition = {
+            slideIntoContainer(
+                towards = AnimatedContentTransitionScope.SlideDirection.End,
+                animationSpec = tween(DURACION_TRANSICION_MS),
+                initialOffset = { ancho -> ancho / FRACCION_DESPLAZAMIENTO }
+            ) + fadeIn(tween(DURACION_TRANSICION_MS))
+        },
+        popExitTransition = {
+            slideOutOfContainer(
+                towards = AnimatedContentTransitionScope.SlideDirection.End,
+                animationSpec = tween(DURACION_TRANSICION_MS),
+                targetOffset = { ancho -> ancho / FRACCION_DESPLAZAMIENTO }
+            ) + fadeOut(tween(DURACION_TRANSICION_MS))
+        }
     ) {
 
         // Login --------------------------------------------------------------

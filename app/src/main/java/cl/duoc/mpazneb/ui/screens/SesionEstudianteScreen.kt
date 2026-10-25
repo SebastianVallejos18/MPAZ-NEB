@@ -37,12 +37,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import cl.duoc.mpazneb.model.Modulo
+import cl.duoc.mpazneb.ui.components.BotonEscuchar
 import cl.duoc.mpazneb.util.letraOpcion
 import cl.duoc.mpazneb.util.opciones
+import cl.duoc.mpazneb.util.textoParaLeer
 import cl.duoc.mpazneb.viewmodel.EtapaSesion
 import cl.duoc.mpazneb.viewmodel.SesionEstudianteUiState
 import cl.duoc.mpazneb.viewmodel.SesionEstudianteViewModel
@@ -54,6 +54,9 @@ fun SesionEstudianteScreen(
     viewModel: SesionEstudianteViewModel = viewModel()
 ) {
     val estado by viewModel.uiState.collectAsState()
+    val hablando by viewModel.hablando.collectAsState()
+    val vozDisponible by viewModel.vozDisponible.collectAsState()
+    val mostrarVoz = estado.vozActiva && vozDisponible
 
     LaunchedEffect(asignacionId) {
         viewModel.cargar(asignacionId)
@@ -86,11 +89,17 @@ fun SesionEstudianteScreen(
                 else -> when (estado.etapa) {
                     EtapaSesion.Instrucciones -> VistaInstrucciones(
                         estado = estado,
+                        mostrarVoz = mostrarVoz,
+                        hablando = hablando,
+                        onEscuchar = viewModel::alternarLectura,
                         onComenzar = viewModel::comenzar
                     )
 
                     EtapaSesion.Respondiendo, EtapaSesion.Retroalimentacion -> VistaPregunta(
                         estado = estado,
+                        mostrarVoz = mostrarVoz,
+                        hablando = hablando,
+                        onEscuchar = viewModel::alternarLectura,
                         onElegir = viewModel::elegirOpcion,
                         onEnviar = viewModel::pedirEnviar,
                         onSiguiente = viewModel::siguiente
@@ -133,7 +142,13 @@ fun SesionEstudianteScreen(
 }
 
 @Composable
-private fun VistaInstrucciones(estado: SesionEstudianteUiState, onComenzar: () -> Unit) {
+private fun VistaInstrucciones(
+    estado: SesionEstudianteUiState,
+    mostrarVoz: Boolean,
+    hablando: Boolean,
+    onEscuchar: (String) -> Unit,
+    onComenzar: () -> Unit
+) {
     Text(text = estado.nombreActividad, style = MaterialTheme.typography.headlineMedium)
     Text(text = "Antes de empezar", style = MaterialTheme.typography.titleMedium)
     Text(text = estado.instrucciones, style = MaterialTheme.typography.bodyLarge)
@@ -149,6 +164,19 @@ private fun VistaInstrucciones(estado: SesionEstudianteUiState, onComenzar: () -
         style = MaterialTheme.typography.bodyMedium
     )
 
+    if (mostrarVoz) {
+        BotonEscuchar(
+            hablando = hablando,
+            onClick = {
+                onEscuchar(
+                    listOf(estado.instrucciones, estado.textoBase)
+                        .filter { it.isNotBlank() }
+                        .joinToString(". ")
+                )
+            }
+        )
+    }
+
     Button(
         onClick = onComenzar,
         modifier = Modifier.fillMaxWidth().height(64.dp)
@@ -160,6 +188,9 @@ private fun VistaInstrucciones(estado: SesionEstudianteUiState, onComenzar: () -
 @Composable
 private fun VistaPregunta(
     estado: SesionEstudianteUiState,
+    mostrarVoz: Boolean,
+    hablando: Boolean,
+    onEscuchar: (String) -> Unit,
     onElegir: (Int) -> Unit,
     onEnviar: () -> Unit,
     onSiguiente: () -> Unit
@@ -180,9 +211,15 @@ private fun VistaPregunta(
 
     if (estado.textoBase.isNotBlank()) {
         TarjetaTexto(estado.textoBase)
+        if (mostrarVoz) {
+            BotonEscuchar(hablando = hablando, onClick = { onEscuchar(estado.textoBase) })
+        }
     }
 
     Text(text = pregunta.enunciado, style = MaterialTheme.typography.titleLarge)
+    if (mostrarVoz) {
+        BotonEscuchar(hablando = hablando, onClick = { onEscuchar(pregunta.textoParaLeer()) })
+    }
 
     pregunta.opciones().forEachIndexed { indice, texto ->
         OpcionRespuesta(
@@ -225,6 +262,9 @@ private fun VistaPregunta(
                     )
                 }
                 Text(text = pregunta.retroalimentacion, style = MaterialTheme.typography.bodyLarge)
+                if (mostrarVoz) {
+                    BotonEscuchar(hablando = hablando, onClick = { onEscuchar(pregunta.retroalimentacion) })
+                }
                 if (estado.esCorrecta && pregunta.procedimiento.isNotBlank()) {
                     Text(
                         text = "Así se resuelve: ${pregunta.procedimiento}",

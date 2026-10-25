@@ -16,4 +16,7 @@ class AsignacionRepository(private val asignacionDao: AsignacionDao) {
 
     fun observarDeAsistente(asistenteId: Long): Flow<List<Asignacion>> =
         asignacionDao.observarDeAsistente(asistenteId)
+
+    suspend fun guardarObservacion(id: Long, observacion: String) =
+        asignacionDao.actualizarObservacion(id, observacion)
 }

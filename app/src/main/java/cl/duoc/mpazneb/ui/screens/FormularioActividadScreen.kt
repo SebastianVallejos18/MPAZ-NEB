@@ -3,6 +3,7 @@ package cl.duoc.mpazneb.ui.screens
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -15,11 +16,13 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -96,6 +99,35 @@ fun FormularioActividadScreen(
                 etiqueta = { etiquetaDificultad(it) },
                 onSeleccionar = viewModel::onDificultadChange
             )
+
+            when (estado.curso) {
+                1, 2 -> Text(
+                    text = "Lectura en voz alta: siempre activa en ${etiquetaCurso(estado.curso)}",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                3 -> Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Lectura en voz alta", style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            text = "Opcional en 3.º básico",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    Switch(
+                        checked = estado.lecturaEnVoz,
+                        onCheckedChange = viewModel::onLecturaEnVozChange
+                    )
+                }
+
+                else -> Text(
+                    text = "Lectura en voz alta: no disponible en ${etiquetaCurso(estado.curso)}",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
 
             CampoTexto(
                 valor = estado.contenido,

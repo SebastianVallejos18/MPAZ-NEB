@@ -73,3 +73,6 @@ fun validarCodigo(codigo: String): String? = when {
     codigo.length != 6 -> "El código tiene 6 letras o números"
     else -> null
 }
+
+fun validarObservacion(valor: String): String? =
+    if (valor.trim().length > 300) "No puede superar los 300 caracteres" else null

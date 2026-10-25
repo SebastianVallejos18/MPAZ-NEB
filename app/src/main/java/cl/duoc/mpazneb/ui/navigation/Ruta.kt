@@ -26,6 +26,12 @@ sealed class Ruta(val ruta: String) {
     data object SesionEstudiante : Ruta("sesion_estudiante/{asignacionId}") {
         fun conId(id: Long): String = "sesion_estudiante/$id"
     }
+
+    data object ResultadosAsistente : Ruta("resultados")
+
+    data object DetalleAsignacion : Ruta("detalle_asignacion/{asignacionId}") {
+        fun conId(id: Long): String = "detalle_asignacion/$id"
+    }
 }
 
 // Decide a qué pantalla va cada perfil después de ingresar

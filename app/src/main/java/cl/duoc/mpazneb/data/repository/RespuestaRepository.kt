@@ -13,4 +13,7 @@ class RespuestaRepository(private val respuestaDao: RespuestaDao) {
 
     fun observarDeAsignacion(asignacionId: Long): Flow<List<Respuesta>> =
         respuestaDao.observarDeAsignacion(asignacionId)
+
+    suspend fun deAsignacion(asignacionId: Long): List<Respuesta> =
+        respuestaDao.deAsignacion(asignacionId)
 }

@@ -11,12 +11,14 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import cl.duoc.mpazneb.ui.screens.AsistenteScreen
 import cl.duoc.mpazneb.ui.screens.CatalogoScreen
+import cl.duoc.mpazneb.ui.screens.DetalleAsignacionScreen
 import cl.duoc.mpazneb.ui.screens.FormularioActividadScreen
 import cl.duoc.mpazneb.ui.screens.FormularioPreguntaScreen
 import cl.duoc.mpazneb.ui.screens.IngresoEstudianteScreen
 import cl.duoc.mpazneb.ui.screens.InicioProvisorioScreen
 import cl.duoc.mpazneb.ui.screens.LoginScreen
 import cl.duoc.mpazneb.ui.screens.PreguntasActividadScreen
+import cl.duoc.mpazneb.ui.screens.ResultadosScreen
 import cl.duoc.mpazneb.ui.screens.SesionEstudianteScreen
 import cl.duoc.mpazneb.viewmodel.SesionViewModel
 
@@ -33,10 +35,15 @@ fun AppNavigation() {
         }
     }
 
+
+
     NavHost(
         navController = navController,
         startDestination = Ruta.Login.ruta
     ) {
+
+        // Login --------------------------------------------------------------
+
         composable(Ruta.Login.ruta) {
             LoginScreen(
                 onLoginExitoso = { usuario ->
@@ -48,6 +55,8 @@ fun AppNavigation() {
                 onIngresoEstudiante = { navController.navigate(Ruta.IngresoEstudiante.ruta) }
             )
         }
+
+        // Admin --------------------------------------------------------------
 
         composable(Ruta.InicioAdmin.ruta) {
             CatalogoScreen(
@@ -108,12 +117,36 @@ fun AppNavigation() {
             )
         }
 
+        // Asistente --------------------------------------------------------------
+
         composable(Ruta.InicioAsistente.ruta) {
             AsistenteScreen(
                 usuario = usuarioActual,
-                onCerrarSesion = cerrarSesion
+                onCerrarSesion = cerrarSesion,
+                onVerResultados = { navController.navigate(Ruta.ResultadosAsistente.ruta) }
             )
         }
+
+        composable(Ruta.ResultadosAsistente.ruta) {
+            ResultadosScreen(
+                asistenteId = usuarioActual?.id ?: 0L,
+                onVerDetalle = { id -> navController.navigate(Ruta.DetalleAsignacion.conId(id)) },
+                onVolver = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Ruta.DetalleAsignacion.ruta,
+            arguments = listOf(navArgument("asignacionId") { type = NavType.LongType })
+        ) { entrada ->
+            val asignacionId = entrada.arguments?.getLong("asignacionId") ?: 0L
+            DetalleAsignacionScreen(
+                asignacionId = asignacionId,
+                onVolver = { navController.popBackStack() }
+            )
+        }
+
+        // Estudiante --------------------------------------------------------------
 
         composable(Ruta.IngresoEstudiante.ruta) {
             IngresoEstudianteScreen(

@@ -17,6 +17,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -45,6 +46,7 @@ import cl.duoc.mpazneb.viewmodel.AsistenteViewModel
 fun AsistenteScreen(
     usuario: Usuario?,
     onCerrarSesion: () -> Unit,
+    onVerResultados: () -> Unit,
     viewModel: AsistenteViewModel = viewModel()
 ) {
     val actividades by viewModel.actividades.collectAsState()
@@ -80,6 +82,17 @@ fun AsistenteScreen(
                     TextButton(onClick = onCerrarSesion) {
                         Text("Salir")
                     }
+                }
+            }
+
+            item {
+                OutlinedButton(
+                    onClick = onVerResultados,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                ) {
+                    Text("Ver resultados de mis asignaciones")
                 }
             }
 

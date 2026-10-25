@@ -16,5 +16,6 @@ data class Actividad(
     val instrucciones: String,
     val textoBase: String = "",
     val intentosPermitidos: Int = 1,
+    val lecturaEnVoz: Boolean = false,
     val estado: EstadoActividad = EstadoActividad.Borrador
 )

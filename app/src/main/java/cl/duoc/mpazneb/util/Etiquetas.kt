@@ -2,7 +2,11 @@ package cl.duoc.mpazneb.util
 
 import cl.duoc.mpazneb.model.Dificultad
 import cl.duoc.mpazneb.model.EstadoActividad
+import cl.duoc.mpazneb.model.EstadoAsignacion
 import cl.duoc.mpazneb.model.Modulo
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 fun etiquetaModulo(modulo: Modulo): String = when (modulo) {
     Modulo.Lectura -> "Lectura"
@@ -41,3 +45,12 @@ fun etiquetaTipoPregunta(tipo: String): String = when (tipo) {
 
 // 0 -> "A", 1 -> "B", 2 -> "C"
 fun letraOpcion(indice: Int): String = ('A' + indice).toString()
+
+fun etiquetaEstadoAsignacion(estado: EstadoAsignacion): String = when (estado) {
+    EstadoAsignacion.Pendiente -> "Pendiente"
+    EstadoAsignacion.EnDesarrollo -> "En desarrollo"
+    EstadoAsignacion.Finalizada -> "Finalizada"
+}
+
+fun formatearFecha(millis: Long): String =
+    SimpleDateFormat("dd/MM/yyyy HH:mm", Locale("es", "CL")).format(Date(millis))

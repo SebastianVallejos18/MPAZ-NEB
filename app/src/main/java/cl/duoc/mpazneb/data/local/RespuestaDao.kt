@@ -16,4 +16,7 @@ interface RespuestaDao {
 
     @Query("SELECT * FROM respuestas WHERE asignacionId = :asignacionId AND intento = :intento ORDER BY id")
     suspend fun deIntento(asignacionId: Long, intento: Int): List<Respuesta>
+
+    @Query("SELECT * FROM respuestas WHERE asignacionId = :asignacionId ORDER BY intento, id")
+    suspend fun deAsignacion(asignacionId: Long): List<Respuesta>
 }

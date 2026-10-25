@@ -23,4 +23,7 @@ interface AsignacionDao {
 
     @Query("SELECT * FROM asignaciones WHERE asistenteId = :asistenteId ORDER BY fecha DESC")
     fun observarDeAsistente(asistenteId: Long): Flow<List<Asignacion>>
+
+    @Query("UPDATE asignaciones SET observacion = :observacion WHERE id = :id")
+    suspend fun actualizarObservacion(id: Long, observacion: String)
 }

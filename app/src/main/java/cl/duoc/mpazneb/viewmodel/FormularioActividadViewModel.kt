@@ -45,7 +45,8 @@ data class FormularioActividadUiState(
     val errorGeneral: String? = null,
     val cargando: Boolean = false,
     val guardado: Boolean = false,
-    val idCreado: Long? = null
+    val idCreado: Long? = null,
+    val lecturaEnVoz: Boolean = false
 )
 
 class FormularioActividadViewModel(application: Application) : AndroidViewModel(application) {
@@ -84,6 +85,7 @@ class FormularioActividadViewModel(application: Application) : AndroidViewModel(
                     textoBase = actividad.textoBase,
                     intentos = actividad.intentosPermitidos.toString(),
                     estado = actividad.estado,
+                    lecturaEnVoz = actividad.lecturaEnVoz,
                     cantidadPreguntas = cantidad
                 )
             }
@@ -192,6 +194,7 @@ class FormularioActividadViewModel(application: Application) : AndroidViewModel(
                 instrucciones = e.instrucciones.trim(),
                 textoBase = if (e.modulo == Modulo.Lectura) e.textoBase.trim() else "",
                 intentosPermitidos = e.intentos.toInt(),
+                lecturaEnVoz = e.curso == 3 && e.lecturaEnVoz,
                 estado = e.estado
             )
 
@@ -219,4 +222,6 @@ class FormularioActividadViewModel(application: Application) : AndroidViewModel(
             }
         }
     }
+
+    fun onLecturaEnVozChange(valor: Boolean) = _uiState.update { it.copy(lecturaEnVoz = valor) }
 }

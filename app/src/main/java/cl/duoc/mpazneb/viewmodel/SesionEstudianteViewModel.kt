@@ -12,6 +12,9 @@ import cl.duoc.mpazneb.model.Asignacion
 import cl.duoc.mpazneb.model.EstadoAsignacion
 import cl.duoc.mpazneb.model.Pregunta
 import cl.duoc.mpazneb.model.Respuesta
+import cl.duoc.mpazneb.util.LectorVoz
+import cl.duoc.mpazneb.util.Vibrador
+import cl.duoc.mpazneb.util.permiteLecturaEnVoz
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -41,7 +44,9 @@ data class SesionEstudianteUiState(
     val errores: Int = 0,
     val intento: Int = 1,
     val intentosPermitidos: Int = 1,
+    val vozActiva: Boolean = false,
     val mensaje: String? = null
+
 ) {
     val preguntaActual: Pregunta? get() = preguntas.getOrNull(indice)
     val puedeReintentar: Boolean get() = intento < intentosPermitidos
@@ -53,6 +58,12 @@ class SesionEstudianteViewModel(application: Application) : AndroidViewModel(app
     private val actividadRepo = ActividadRepository(baseDeDatos.actividadDao, baseDeDatos.preguntaDao)
     private val asignacionRepo = AsignacionRepository(baseDeDatos.asignacionDao)
     private val respuestaRepo = RespuestaRepository(baseDeDatos.respuestaDao)
+
+    private val lector = LectorVoz(application)
+
+    private val vibrador = Vibrador(application)
+    val hablando: StateFlow<Boolean> = lector.hablando
+    val vozDisponible: StateFlow<Boolean> = lector.disponible
 
     private val _uiState = MutableStateFlow(SesionEstudianteUiState())
     val uiState: StateFlow<SesionEstudianteUiState> = _uiState.asStateFlow()
@@ -109,6 +120,8 @@ class SesionEstudianteViewModel(application: Application) : AndroidViewModel(app
 
                 asignacion = actual
 
+                val vozActiva = permiteLecturaEnVoz(actividad.cursoRecomendado, actividad.lecturaEnVoz)
+                if (vozActiva) lector.preparar()
                 _uiState.update {
                     it.copy(
                         cargando = false,
@@ -121,7 +134,8 @@ class SesionEstudianteViewModel(application: Application) : AndroidViewModel(app
                         aciertos = actual.aciertos,
                         errores = actual.errores,
                         intento = actual.intentos,
-                        intentosPermitidos = actividad.intentosPermitidos
+                        intentosPermitidos = actividad.intentosPermitidos,
+                        vozActiva = vozActiva
                     )
                 }
 
@@ -136,6 +150,7 @@ class SesionEstudianteViewModel(application: Application) : AndroidViewModel(app
     }
 
     fun comenzar() {
+        lector.detener()
         _uiState.update { it.copy(etapa = EtapaSesion.Respondiendo) }
     }
 
@@ -152,10 +167,12 @@ class SesionEstudianteViewModel(application: Application) : AndroidViewModel(app
     }
 
     fun cancelarEnvio() {
+        lector.detener()
         _uiState.update { it.copy(confirmando = false) }
     }
 
     fun confirmarEnvio() {
+        lector.detener()
         val e = _uiState.value
         val pregunta = e.preguntaActual ?: return
         val elegida = e.opcionElegida ?: return
@@ -186,6 +203,7 @@ class SesionEstudianteViewModel(application: Application) : AndroidViewModel(app
                     asignacionRepo.actualizar(actualizada)
                 }
                 asignacion = actualizada
+                if (acerto) vibrador.acierto() else vibrador.refuerzo()
                 _uiState.update {
                     it.copy(
                         etapa = EtapaSesion.Retroalimentacion,
@@ -203,6 +221,7 @@ class SesionEstudianteViewModel(application: Application) : AndroidViewModel(app
     }
 
     fun siguiente() {
+        lector.detener()
         val e = _uiState.value
         if (e.indice + 1 < e.preguntas.size) {
             _uiState.update {
@@ -218,6 +237,7 @@ class SesionEstudianteViewModel(application: Application) : AndroidViewModel(app
     }
 
     fun reintentar() {
+        lector.detener()
         val actual = asignacion ?: return
         if (!_uiState.value.puedeReintentar) return
 
@@ -260,5 +280,15 @@ class SesionEstudianteViewModel(application: Application) : AndroidViewModel(app
         } catch (ex: Exception) {
             _uiState.update { it.copy(mensaje = "No se pudo cerrar la actividad") }
         }
+    }
+
+    fun alternarLectura(texto: String) {
+        if (hablando.value) lector.detener() else lector.leer(texto)
+    }
+
+    override fun onCleared() {
+        lector.liberar()
+        vibrador.cancelar()
+        super.onCleared()
     }
 }

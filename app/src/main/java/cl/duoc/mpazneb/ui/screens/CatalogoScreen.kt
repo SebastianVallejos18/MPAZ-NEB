@@ -35,6 +35,7 @@ import cl.duoc.mpazneb.util.etiquetaCurso
 import cl.duoc.mpazneb.util.etiquetaDificultad
 import cl.duoc.mpazneb.util.etiquetaEstado
 import cl.duoc.mpazneb.util.etiquetaModulo
+import cl.duoc.mpazneb.util.permiteLecturaEnVoz
 import cl.duoc.mpazneb.viewmodel.CatalogoViewModel
 
 @Composable
@@ -173,6 +174,9 @@ private fun TarjetaActividad(
                     MaterialTheme.colorScheme.onSurfaceVariant
                 }
             )
+            if (permiteLecturaEnVoz(actividad.cursoRecomendado, actividad.lecturaEnVoz)) {
+                Text(text = "Con lectura en voz alta", style = MaterialTheme.typography.labelMedium)
+            }
             TextButton(onClick = onPreguntas) {
                 Text("Ver preguntas")
             }

@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.Flow
 
 class AsignacionRepository(private val asignacionDao: AsignacionDao) {
 
-    suspend fun insertar(asignacion: Asignacion): Long = asignacionDao.insertar(asignacion)
+    suspend fun crear(asignacion: Asignacion): Long = asignacionDao.insertar(asignacion)
 
     suspend fun actualizar(asignacion: Asignacion) = asignacionDao.actualizar(asignacion)
 
@@ -14,6 +14,6 @@ class AsignacionRepository(private val asignacionDao: AsignacionDao) {
 
     suspend fun buscarPorId(id: Long): Asignacion? = asignacionDao.buscarPorId(id)
 
-    fun observarDeAsistente(asistenteId: Long): Flow<List<Asignacion>>
-    = asignacionDao.observarDeAsistente(asistenteId)
+    fun observarDeAsistente(asistenteId: Long): Flow<List<Asignacion>> =
+        asignacionDao.observarDeAsistente(asistenteId)
 }

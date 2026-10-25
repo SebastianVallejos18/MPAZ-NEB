@@ -25,7 +25,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            MPAZNEBTheme {   // deja el nombre del tema como lo tengas
+            MPAZNEBTheme {
                 AppNavigation()
             }
         }

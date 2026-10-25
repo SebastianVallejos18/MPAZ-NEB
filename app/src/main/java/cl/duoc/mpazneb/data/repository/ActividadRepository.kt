@@ -17,11 +17,12 @@ class ActividadRepository(
     fun observarTodas(): Flow<List<Actividad>> = actividadDao.observarTodas()
 
     fun filtrar(
-        modulo: Modulo,
-        curso: Int,
-        dificultad: Dificultad,
-        estado: EstadoActividad
-    ): Flow<List<Actividad>> = actividadDao.filtrar(modulo, curso, dificultad, estado)
+        modulo: Modulo?,
+        curso: Int?,
+        dificultad: Dificultad?,
+        estado: EstadoActividad?
+    ): Flow<List<Actividad>> =
+        actividadDao.filtrar(modulo?.clave, curso, dificultad?.clave, estado?.clave)
 
     suspend fun buscarPorId(id: Long): Actividad? = actividadDao.buscarPorId(id)
 
@@ -37,4 +38,15 @@ class ActividadRepository(
     }
 
     suspend fun contar(): Int = actividadDao.contar()
+
+    fun observarPreguntas(actividadId: Long): Flow<List<Pregunta>> =
+        preguntaDao.observarDeActividad(actividadId)
+
+    suspend fun buscarPregunta(id: Long): Pregunta? = preguntaDao.buscarPorId(id)
+
+    suspend fun guardarPregunta(pregunta: Pregunta) {
+        if (pregunta.id == 0L) preguntaDao.insertar(pregunta) else preguntaDao.actualizar(pregunta)
+    }
+
+    suspend fun eliminarPregunta(pregunta: Pregunta) = preguntaDao.eliminar(pregunta)
 }

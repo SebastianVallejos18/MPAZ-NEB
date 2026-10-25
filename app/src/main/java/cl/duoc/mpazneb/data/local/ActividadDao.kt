@@ -26,14 +26,17 @@ interface ActividadDao {
 
     @Query(
         "SELECT * FROM actividades " +
-                "WHERE modulo = :modulo AND cursoRecomendado = :curso " +
-                "AND dificultad = :dificultad AND estado = :estado ORDER BY nombre"
+                "WHERE (:modulo IS NULL OR modulo = :modulo) " +
+                "AND (:curso IS NULL OR cursoRecomendado = :curso) " +
+                "AND (:dificultad IS NULL OR dificultad = :dificultad) " +
+                "AND (:estado IS NULL OR estado = :estado) " +
+                "ORDER BY cursoRecomendado, nombre"
     )
     fun filtrar(
-        modulo: Modulo,
-        curso: Int,
-        dificultad: Dificultad,
-        estado: EstadoActividad
+        modulo: String?,
+        curso: Int?,
+        dificultad: String?,
+        estado: String?
     ): Flow<List<Actividad>>
 
     @Query("SELECT COUNT(*) FROM actividades")

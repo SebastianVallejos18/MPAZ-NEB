@@ -13,9 +13,11 @@ import cl.duoc.mpazneb.ui.screens.AsistenteScreen
 import cl.duoc.mpazneb.ui.screens.CatalogoScreen
 import cl.duoc.mpazneb.ui.screens.FormularioActividadScreen
 import cl.duoc.mpazneb.ui.screens.FormularioPreguntaScreen
+import cl.duoc.mpazneb.ui.screens.IngresoEstudianteScreen
 import cl.duoc.mpazneb.ui.screens.InicioProvisorioScreen
 import cl.duoc.mpazneb.ui.screens.LoginScreen
 import cl.duoc.mpazneb.ui.screens.PreguntasActividadScreen
+import cl.duoc.mpazneb.ui.screens.SesionEstudianteScreen
 import cl.duoc.mpazneb.viewmodel.SesionViewModel
 
 @Composable
@@ -42,7 +44,8 @@ fun AppNavigation() {
                     navController.navigate(rutaInicioDe(usuario.perfil)) {
                         popUpTo(Ruta.Login.ruta) { inclusive = true }
                     }
-                }
+                },
+                onIngresoEstudiante = { navController.navigate(Ruta.IngresoEstudiante.ruta) }
             )
         }
 
@@ -112,8 +115,27 @@ fun AppNavigation() {
             )
         }
 
-        composable(Ruta.InicioEstudiante.ruta) {
-            InicioProvisorioScreen("Estudiante", usuarioActual, cerrarSesion)
+        composable(Ruta.IngresoEstudiante.ruta) {
+            IngresoEstudianteScreen(
+                onIngresoExitoso = { estudiante, asignacionId ->
+                    sesionViewModel.iniciarSesion(estudiante)
+                    navController.navigate(Ruta.SesionEstudiante.conId(asignacionId)) {
+                        popUpTo(Ruta.Login.ruta) { inclusive = true }
+                    }
+                },
+                onVolver = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Ruta.SesionEstudiante.ruta,
+            arguments = listOf(navArgument("asignacionId") { type = NavType.LongType })
+        ) { entrada ->
+            val asignacionId = entrada.arguments?.getLong("asignacionId") ?: 0L
+            SesionEstudianteScreen(
+                asignacionId = asignacionId,
+                onSalir = cerrarSesion
+            )
         }
     }
 }

@@ -23,6 +23,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -40,6 +41,7 @@ import cl.duoc.mpazneb.viewmodel.LoginViewModel
 @Composable
 fun LoginScreen(
     onLoginExitoso: (Usuario) -> Unit,
+    onIngresoEstudiante: () -> Unit,
     viewModel: LoginViewModel = viewModel()
 ) {
     val estado by viewModel.uiState.collectAsState()
@@ -151,6 +153,17 @@ fun LoginScreen(
             } else {
                 Text("Ingresar", style = MaterialTheme.typography.titleMedium)
             }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        TextButton(
+            onClick = onIngresoEstudiante,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+        ) {
+            Text("Soy estudiante: ingresar con código")
         }
     }
 }

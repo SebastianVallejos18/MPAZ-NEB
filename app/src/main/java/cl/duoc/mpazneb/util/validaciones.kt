@@ -67,3 +67,9 @@ fun validarOpcionesDistintas(a: String, b: String, c: String): String? {
     val normalizadas = listOf(a, b, c).map { it.trim().lowercase() }
     return if (normalizadas.toSet().size < 3) "Las tres opciones deben ser distintas" else null
 }
+
+fun validarCodigo(codigo: String): String? = when {
+    codigo.isBlank() -> "Escribe el código que te dio tu asistente"
+    codigo.length != 6 -> "El código tiene 6 letras o números"
+    else -> null
+}

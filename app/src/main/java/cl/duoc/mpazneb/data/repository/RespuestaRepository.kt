@@ -6,7 +6,11 @@ import kotlinx.coroutines.flow.Flow
 
 class RespuestaRepository(private val respuestaDao: RespuestaDao) {
 
-    suspend fun insertar(respuesta: Respuesta): Long = respuestaDao.insertar(respuesta)
+    suspend fun registrar(respuesta: Respuesta): Long = respuestaDao.insertar(respuesta)
 
-    fun observarDeAsignacion(asignacionId: Long): Flow<List<Respuesta>> = respuestaDao.observarDeAsignacion(asignacionId)
+    suspend fun deIntento(asignacionId: Long, intento: Int): List<Respuesta> =
+        respuestaDao.deIntento(asignacionId, intento)
+
+    fun observarDeAsignacion(asignacionId: Long): Flow<List<Respuesta>> =
+        respuestaDao.observarDeAsignacion(asignacionId)
 }

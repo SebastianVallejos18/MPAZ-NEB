@@ -69,7 +69,7 @@ La primera vez que se abre la app se cargan 4 actividades de ejemplo (2 de Lectu
 - Conexión a internet solo para la primera sincronización de Gradle; la aplicación funciona sin conexión.
 
 **Pasos**
-1. Clonar el repositorio: `git clone [ENLACE AL REPOSITORIO]`
+1. Clonar el repositorio: `git clone https://github.com/SebastianVallejos18/MPAZ-NEB.git`
 2. Abrir la carpeta en Android Studio y esperar a que termine **Sync Gradle**.
 3. Conectar un dispositivo con **Depuración USB** activada (Ajustes → Opciones de desarrollador), o crear un emulador.
 4. Presionar **Run** (▶) con el módulo `app` seleccionado.
@@ -91,7 +91,7 @@ El proyecto sigue **MVVM** con una capa **Repository**:
 | ViewModel | `viewmodel` | Estado de cada pantalla (`StateFlow`), validaciones y coordinación con los repositorios |
 | View | `ui` | Pantallas y componentes Composable; solo muestran el estado y avisan los eventos del usuario |
 
-Las reglas de validación son **funciones puras** (`util/Validaciones.kt`), separadas de la interfaz, por lo que cada pantalla solo muestra el mensaje que le entrega el ViewModel.
+Las reglas de validación son **funciones puras** (`util/validaciones.kt`), separadas de la interfaz, por lo que cada pantalla solo muestra el mensaje que le entrega el ViewModel.
 
 ### Estructura de carpetas
 

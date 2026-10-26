@@ -8,9 +8,7 @@ Proyecto académico (MVP) de la asignatura **DSY1105 – Desarrollo de Aplicacio
 
 ## Integrante
 
-| Nombre                         | Rol |
-|--------------------------------|---|
-| `Sebastian Andres Vallejos Rios` | Desarrollo individual del proyecto |
+`| Sebastian Andres Vallejos Rios`
 
 - Docente: `Jose Miguel Candia Hernandez`
 - Sección: 003D

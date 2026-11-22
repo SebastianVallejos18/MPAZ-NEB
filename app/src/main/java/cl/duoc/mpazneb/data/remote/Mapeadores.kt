@@ -2,6 +2,7 @@ package cl.duoc.mpazneb.data.remote
 
 import cl.duoc.mpazneb.data.remote.dto.ActividadDto
 import cl.duoc.mpazneb.data.remote.dto.AsignacionDto
+import cl.duoc.mpazneb.data.remote.dto.PokemonDto
 import cl.duoc.mpazneb.data.remote.dto.PreguntaDto
 import cl.duoc.mpazneb.data.remote.dto.ProgresoRequest
 import cl.duoc.mpazneb.data.remote.dto.RespuestaDto
@@ -14,6 +15,7 @@ import cl.duoc.mpazneb.model.EstadoActividad
 import cl.duoc.mpazneb.model.EstadoAsignacion
 import cl.duoc.mpazneb.model.Modulo
 import cl.duoc.mpazneb.model.Perfil
+import cl.duoc.mpazneb.model.Pokemon
 import cl.duoc.mpazneb.model.Pregunta
 import cl.duoc.mpazneb.model.Respuesta
 import cl.duoc.mpazneb.model.Usuario
@@ -121,4 +123,12 @@ fun Respuesta.aRequest(): RespuestaRequest = RespuestaRequest(
     intento = intento,
     opcionElegida = opcionElegida,
     esCorrecta = esCorrecta
+)
+
+// Prefiere la ilustración oficial (más grande); si no existe, usa el sprite normal
+fun PokemonDto.aModelo(): Pokemon = Pokemon(
+    id = id,
+    nombre = name.replaceFirstChar { it.uppercase() },
+    imagenUrl = sprites.other?.officialArtwork?.frontDefault ?: sprites.frontDefault ?: "",
+    tipos = types.sortedBy { it.slot }.map { it.type.name }
 )

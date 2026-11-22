@@ -5,14 +5,17 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import cl.duoc.mpazneb.data.repository.ActividadRepository
 import cl.duoc.mpazneb.data.repository.AsignacionRepository
+import cl.duoc.mpazneb.data.repository.PokemonRepository
 import cl.duoc.mpazneb.di.AppModule
 import cl.duoc.mpazneb.model.Asignacion
 import cl.duoc.mpazneb.model.EstadoAsignacion
+import cl.duoc.mpazneb.model.Pokemon
 import cl.duoc.mpazneb.model.Pregunta
 import cl.duoc.mpazneb.model.Respuesta
 import cl.duoc.mpazneb.util.LectorVoz
 import cl.duoc.mpazneb.util.Vibrador
 import cl.duoc.mpazneb.util.mensajeDeError
+import cl.duoc.mpazneb.util.mereceRecompensa
 import cl.duoc.mpazneb.util.permiteLecturaEnVoz
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -44,7 +47,10 @@ data class SesionEstudianteUiState(
     val intento: Int = 1,
     val intentosPermitidos: Int = 1,
     val vozActiva: Boolean = false,
-    val mensaje: String? = null
+    val mensaje: String? = null,
+    // Premio de la PokeAPI al terminar con al menos un acierto
+    val premio: Pokemon? = null,
+    val cargandoPremio: Boolean = false
 ) {
     val preguntaActual: Pregunta? get() = preguntas.getOrNull(indice)
     val puedeReintentar: Boolean get() = intento < intentosPermitidos
@@ -56,6 +62,7 @@ class SesionEstudianteViewModel @JvmOverloads constructor(
     application: Application,
     private val actividadRepo: ActividadRepository = AppModule.actividadRepository,
     private val asignacionRepo: AsignacionRepository = AppModule.asignacionRepository,
+    private val pokemonRepo: PokemonRepository = AppModule.pokemonRepository,
     private val lector: LectorVoz = LectorVoz(application),
     private val vibrador: Vibrador = Vibrador(application)
 ) : AndroidViewModel(application) {
@@ -139,6 +146,7 @@ class SesionEstudianteViewModel @JvmOverloads constructor(
                 }
 
                 if (etapa == EtapaSesion.Resultado) {
+                    cargarPremio()
                     // Si quedó en el resultado del último intento sin cerrarse, se cierra ahora
                     if (actual.intentos >= actividad.intentosPermitidos) finalizar()
                 }
@@ -226,6 +234,7 @@ class SesionEstudianteViewModel @JvmOverloads constructor(
             }
         } else {
             _uiState.update { it.copy(indice = it.preguntas.size, etapa = EtapaSesion.Resultado) }
+            cargarPremio()
             // Si no quedan intentos, la asignación se cierra y el código deja de servir
             if (!e.puedeReintentar) {
                 viewModelScope.launch { finalizar() }
@@ -251,6 +260,7 @@ class SesionEstudianteViewModel @JvmOverloads constructor(
                         opcionElegida = null,
                         aciertos = 0,
                         errores = 0,
+                        premio = null,
                         etapa = EtapaSesion.Respondiendo
                     )
                 }
@@ -277,6 +287,25 @@ class SesionEstudianteViewModel @JvmOverloads constructor(
             asignacion = asignacionRepo.actualizarProgreso(actual.copy(estado = EstadoAsignacion.Finalizada))
         } catch (ex: Exception) {
             _uiState.update { it.copy(mensaje = mensajeDeError(ex, "No se pudo cerrar la actividad")) }
+        }
+    }
+
+    // API externa: si el estudiante tuvo al menos un acierto, se muestra un Pokémon como premio.
+    // Si la PokeAPI falla, la sesión sigue normal: el premio es un extra, no bloquea nada.
+    private fun cargarPremio() {
+        val e = _uiState.value
+        if (!mereceRecompensa(e.aciertos) || e.premio != null || e.cargandoPremio) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(cargandoPremio = true) }
+            try {
+                val pokemon = pokemonRepo.obtenerPremio()
+                _uiState.update { it.copy(premio = pokemon) }
+            } catch (ex: Exception) {
+                _uiState.update { it.copy(premio = null) }
+            } finally {
+                _uiState.update { it.copy(cargandoPremio = false) }
+            }
         }
     }
 

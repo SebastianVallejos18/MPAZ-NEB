@@ -40,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cl.duoc.mpazneb.ui.components.BotonEscuchar
+import cl.duoc.mpazneb.ui.components.TarjetaPokemon
 import cl.duoc.mpazneb.util.letraOpcion
 import cl.duoc.mpazneb.util.opciones
 import cl.duoc.mpazneb.util.textoParaLeer
@@ -322,6 +323,9 @@ private fun VistaResultado(
         text = "Intento ${estado.intento} de ${estado.intentosPermitidos}",
         style = MaterialTheme.typography.bodyMedium
     )
+
+    // Premio de la PokeAPI (solo aparece si hubo al menos un acierto)
+    TarjetaPokemon(pokemon = estado.premio, cargando = estado.cargandoPremio)
 
     if (estado.puedeReintentar) {
         Text(

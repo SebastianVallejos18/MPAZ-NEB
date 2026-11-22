@@ -54,3 +54,26 @@ fun etiquetaEstadoAsignacion(estado: EstadoAsignacion): String = when (estado) {
 
 fun formatearFecha(millis: Long): String =
     SimpleDateFormat("dd/MM/yyyy HH:mm", Locale("es", "CL")).format(Date(millis))
+
+// Tipos de Pokémon en español (la PokeAPI los entrega en inglés)
+fun etiquetaTipoPokemon(tipo: String): String = when (tipo) {
+    "normal" -> "Normal"
+    "fire" -> "Fuego"
+    "water" -> "Agua"
+    "grass" -> "Planta"
+    "electric" -> "Eléctrico"
+    "ice" -> "Hielo"
+    "fighting" -> "Lucha"
+    "poison" -> "Veneno"
+    "ground" -> "Tierra"
+    "flying" -> "Volador"
+    "psychic" -> "Psíquico"
+    "bug" -> "Bicho"
+    "rock" -> "Roca"
+    "ghost" -> "Fantasma"
+    "dragon" -> "Dragón"
+    "dark" -> "Siniestro"
+    "steel" -> "Acero"
+    "fairy" -> "Hada"
+    else -> tipo.replaceFirstChar { it.uppercase() }
+}

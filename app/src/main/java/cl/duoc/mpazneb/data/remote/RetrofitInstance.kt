@@ -2,6 +2,7 @@ package cl.duoc.mpazneb.data.remote
 
 import cl.duoc.mpazneb.data.remote.api.ActividadApi
 import cl.duoc.mpazneb.data.remote.api.AsignacionApi
+import cl.duoc.mpazneb.data.remote.api.PokeApiService
 import cl.duoc.mpazneb.data.remote.api.UsuarioApi
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -22,6 +23,9 @@ object RetrofitInstance {
     const val URL_USUARIOS = "http://$IP_SERVIDOR:8081/"
     const val URL_ACTIVIDADES = "http://$IP_SERVIDOR:8082/"
     const val URL_ASIGNACIONES = "http://$IP_SERVIDOR:8083/"
+
+    // API externa
+    const val URL_POKEAPI = "https://pokeapi.co/api/v2/"
 
     // Muestra en el Logcat cada petición y respuesta (útil para la defensa)
     private val registro = HttpLoggingInterceptor().apply {
@@ -45,4 +49,5 @@ object RetrofitInstance {
     val usuarioApi: UsuarioApi by lazy { crearRetrofit(URL_USUARIOS).create(UsuarioApi::class.java) }
     val actividadApi: ActividadApi by lazy { crearRetrofit(URL_ACTIVIDADES).create(ActividadApi::class.java) }
     val asignacionApi: AsignacionApi by lazy { crearRetrofit(URL_ASIGNACIONES).create(AsignacionApi::class.java) }
+    val pokeApi: PokeApiService by lazy { crearRetrofit(URL_POKEAPI).create(PokeApiService::class.java) }
 }

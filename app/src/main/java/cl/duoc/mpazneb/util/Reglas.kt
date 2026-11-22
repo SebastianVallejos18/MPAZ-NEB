@@ -6,3 +6,6 @@ fun permiteLecturaEnVoz(curso: Int, activadaPorAdmin: Boolean): Boolean = when (
     3 -> activadaPorAdmin
     else -> false
 }
+
+// Premio de la PokeAPI: se entrega si el estudiante respondió bien al menos una pregunta
+fun mereceRecompensa(aciertos: Int): Boolean = aciertos >= 1

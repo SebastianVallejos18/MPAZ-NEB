@@ -1,0 +1,8 @@
+package cl.duoc.mpazneb.asignaciones.exception;
+
+// Se lanza cuando una operación rompe una regla del caso (responde 409)
+public class ReglaNegocioException extends RuntimeException {
+    public ReglaNegocioException(String mensaje) {
+        super(mensaje);
+    }
+}

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Proyecto "agrupador": permite abrir los 3 microservicios juntos en IntelliJ.
+     Cada módulo sigue siendo una aplicación Spring Boot independiente, con su puerto y su base de datos. -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>cl.duoc.mpazneb</groupId>
+    <artifactId>mpaz-neb-backend</artifactId>
+    <version>1.0.0</version>
+    <packaging>pom</packaging>
+    <name>mpaz-neb-backend</name>
+
+    <modules>
+        <module>ms-usuarios</module>
+        <module>ms-actividades</module>
+        <module>ms-asignaciones</module>
+    </modules>
+</project>

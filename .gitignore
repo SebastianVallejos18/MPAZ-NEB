@@ -13,3 +13,9 @@
 .externalNativeBuild
 .cxx
 local.properties
+.kotlin/
+
+# Backend
+backend/**/target/
+backend/**/.idea/
+backend/.idea/

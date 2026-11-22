@@ -22,6 +22,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.material3.LinearProgressIndicator
+import cl.duoc.mpazneb.ui.components.MensajeError
 import cl.duoc.mpazneb.model.EstadoAsignacion
 import cl.duoc.mpazneb.util.etiquetaEstadoAsignacion
 import cl.duoc.mpazneb.util.formatearFecha
@@ -36,6 +38,7 @@ fun ResultadosScreen(
     viewModel: ResultadosViewModel = viewModel()
 ) {
     val resumenes by viewModel.resumenes.collectAsState()
+    val estadoLista by viewModel.estado.collectAsState()
 
     LaunchedEffect(asistenteId) {
         viewModel.cargar(asistenteId)
@@ -69,7 +72,13 @@ fun ResultadosScreen(
                 }
             }
 
-            if (resumenes.isEmpty()) {
+            estadoLista.error?.let { error ->
+                item { MensajeError(mensaje = error, onReintentar = { viewModel.cargar(asistenteId) }) }
+            }
+
+            if (estadoLista.cargando && resumenes.isEmpty()) {
+                item { LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
+            } else if (resumenes.isEmpty() && estadoLista.error == null) {
                 item {
                     Text(
                         text = "Todavía no has asignado actividades.",

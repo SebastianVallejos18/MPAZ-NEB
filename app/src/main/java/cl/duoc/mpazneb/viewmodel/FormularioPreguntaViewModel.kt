@@ -1,12 +1,12 @@
 package cl.duoc.mpazneb.viewmodel
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import cl.duoc.mpazneb.MpazApplication
 import cl.duoc.mpazneb.data.repository.ActividadRepository
+import cl.duoc.mpazneb.di.AppModule
 import cl.duoc.mpazneb.model.Modulo
 import cl.duoc.mpazneb.model.Pregunta
+import cl.duoc.mpazneb.util.mensajeDeError
 import cl.duoc.mpazneb.util.tiposDePregunta
 import cl.duoc.mpazneb.util.validarEnunciado
 import cl.duoc.mpazneb.util.validarOpcion
@@ -42,14 +42,9 @@ data class FormularioPreguntaUiState(
     val guardado: Boolean = false
 )
 
-class FormularioPreguntaViewModel(application: Application) : AndroidViewModel(application) {
-
-    private val baseDeDatos = getApplication<MpazApplication>().baseDeDatos
-
-    private val repositorio = ActividadRepository(
-        baseDeDatos.actividadDao,
-        baseDeDatos.preguntaDao
-    )
+class FormularioPreguntaViewModel(
+    private val repositorio: ActividadRepository = AppModule.actividadRepository
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(FormularioPreguntaUiState())
     val uiState: StateFlow<FormularioPreguntaUiState> = _uiState.asStateFlow()
@@ -63,7 +58,7 @@ class FormularioPreguntaViewModel(application: Application) : AndroidViewModel(a
         cargado = true
         actividadId = idActividad
 
-        ejecutar {
+        ejecutar("No se pudo cargar la pregunta") {
             val actividad = repositorio.buscarPorId(idActividad) ?: return@ejecutar
             val pregunta = if (idPregunta != 0L) repositorio.buscarPregunta(idPregunta) else null
 
@@ -175,7 +170,8 @@ class FormularioPreguntaViewModel(application: Application) : AndroidViewModel(a
             return
         }
 
-        ejecutar {
+        ejecutar("No se pudo guardar. Intenta nuevamente") {
+            // id 0 -> POST (crear); otro id -> PUT (editar)
             repositorio.guardarPregunta(
                 Pregunta(
                     id = e.preguntaId,
@@ -194,14 +190,14 @@ class FormularioPreguntaViewModel(application: Application) : AndroidViewModel(a
         }
     }
 
-    private fun ejecutar(operacion: suspend () -> Unit) {
+    private fun ejecutar(mensajeError: String, operacion: suspend () -> Unit) {
         viewModelScope.launch {
             if (_uiState.value.cargando) return@launch
-            _uiState.update { it.copy(cargando = true) }
+            _uiState.update { it.copy(cargando = true, errorGeneral = null) }
             try {
                 operacion()
             } catch (ex: Exception) {
-                _uiState.update { it.copy(errorGeneral = "No se pudo guardar. Intenta nuevamente") }
+                _uiState.update { it.copy(errorGeneral = mensajeDeError(ex, mensajeError)) }
             } finally {
                 _uiState.update { it.copy(cargando = false) }
             }

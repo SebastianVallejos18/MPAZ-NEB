@@ -1,15 +1,14 @@
 package cl.duoc.mpazneb.viewmodel
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import cl.duoc.mpazneb.MpazApplication
 import cl.duoc.mpazneb.data.repository.ActividadRepository
 import cl.duoc.mpazneb.data.repository.AsignacionRepository
-import cl.duoc.mpazneb.data.repository.RespuestaRepository
 import cl.duoc.mpazneb.data.repository.UsuarioRepository
+import cl.duoc.mpazneb.di.AppModule
 import cl.duoc.mpazneb.model.Asignacion
 import cl.duoc.mpazneb.util.letraOpcion
+import cl.duoc.mpazneb.util.mensajeDeError
 import cl.duoc.mpazneb.util.opciones
 import cl.duoc.mpazneb.util.validarObservacion
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,16 +35,16 @@ data class DetalleUiState(
     val respuestas: List<RespuestaDetalle> = emptyList(),
     val observacion: String = "",
     val errorObservacion: String? = null,
-    val mensaje: String? = null
+    val mensaje: String? = null,
+    val confirmandoEliminar: Boolean = false,
+    val eliminada: Boolean = false
 )
 
-class DetalleAsignacionViewModel(application: Application) : AndroidViewModel(application) {
-
-    private val baseDeDatos = getApplication<MpazApplication>().baseDeDatos
-    private val actividadRepo = ActividadRepository(baseDeDatos.actividadDao, baseDeDatos.preguntaDao)
-    private val usuarioRepo = UsuarioRepository(baseDeDatos.usuarioDao)
-    private val asignacionRepo = AsignacionRepository(baseDeDatos.asignacionDao)
-    private val respuestaRepo = RespuestaRepository(baseDeDatos.respuestaDao)
+class DetalleAsignacionViewModel(
+    private val actividadRepo: ActividadRepository = AppModule.actividadRepository,
+    private val usuarioRepo: UsuarioRepository = AppModule.usuarioRepository,
+    private val asignacionRepo: AsignacionRepository = AppModule.asignacionRepository
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DetalleUiState())
     val uiState: StateFlow<DetalleUiState> = _uiState.asStateFlow()
@@ -70,7 +69,7 @@ class DetalleAsignacionViewModel(application: Application) : AndroidViewModel(ap
                 val preguntas = actividadRepo.preguntasDe(actividad.id)
                 val preguntaPorId = preguntas.associateBy { it.id }
 
-                val detalle = respuestaRepo.deAsignacion(asignacionId).mapNotNull { respuesta ->
+                val detalle = asignacionRepo.respuestasDe(asignacionId).mapNotNull { respuesta ->
                     val pregunta = preguntaPorId[respuesta.preguntaId] ?: return@mapNotNull null
                     RespuestaDetalle(
                         intento = respuesta.intento,
@@ -94,7 +93,9 @@ class DetalleAsignacionViewModel(application: Application) : AndroidViewModel(ap
                     )
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(cargando = false, mensaje = "No se pudo abrir el detalle") }
+                _uiState.update {
+                    it.copy(cargando = false, mensaje = mensajeDeError(e, "No se pudo abrir el detalle"))
+                }
             }
         }
     }
@@ -123,10 +124,35 @@ class DetalleAsignacionViewModel(application: Application) : AndroidViewModel(ap
         viewModelScope.launch {
             _uiState.update { it.copy(guardando = true) }
             try {
-                asignacionRepo.guardarObservacion(asignacion.id, estado.observacion.trim())
-                _uiState.update { it.copy(mensaje = "Observación guardada") }
+                // PATCH en ms-asignaciones
+                val actualizada = asignacionRepo.guardarObservacion(asignacion.id, estado.observacion.trim())
+                _uiState.update { it.copy(asignacion = actualizada, mensaje = "Observación guardada") }
             } catch (e: Exception) {
-                _uiState.update { it.copy(mensaje = "No se pudo guardar la observación") }
+                _uiState.update { it.copy(mensaje = mensajeDeError(e, "No se pudo guardar la observación")) }
+            } finally {
+                _uiState.update { it.copy(guardando = false) }
+            }
+        }
+    }
+
+    fun pedirEliminar() {
+        _uiState.update { it.copy(confirmandoEliminar = true, mensaje = null) }
+    }
+
+    fun cancelarEliminar() {
+        _uiState.update { it.copy(confirmandoEliminar = false) }
+    }
+
+    // Elimina la asignación y sus respuestas (DELETE en ms-asignaciones)
+    fun confirmarEliminar() {
+        val asignacion = _uiState.value.asignacion ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(confirmandoEliminar = false, guardando = true) }
+            try {
+                asignacionRepo.eliminar(asignacion.id)
+                _uiState.update { it.copy(eliminada = true) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(mensaje = mensajeDeError(e, "No se pudo eliminar la asignación")) }
             } finally {
                 _uiState.update { it.copy(guardando = false) }
             }

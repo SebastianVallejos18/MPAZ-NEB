@@ -1,20 +1,18 @@
 package cl.duoc.mpazneb.viewmodel
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import cl.duoc.mpazneb.MpazApplication
 import cl.duoc.mpazneb.data.repository.ActividadRepository
 import cl.duoc.mpazneb.data.repository.AsignacionRepository
 import cl.duoc.mpazneb.data.repository.UsuarioRepository
+import cl.duoc.mpazneb.di.AppModule
 import cl.duoc.mpazneb.model.Asignacion
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import cl.duoc.mpazneb.util.mensajeDeError
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 data class ResumenAsignacion(
     val asignacion: Asignacion,
@@ -23,36 +21,47 @@ data class ResumenAsignacion(
     val totalPreguntas: Int
 )
 
-@OptIn(ExperimentalCoroutinesApi::class)
-class ResultadosViewModel(application: Application) : AndroidViewModel(application) {
+class ResultadosViewModel(
+    private val actividadRepo: ActividadRepository = AppModule.actividadRepository,
+    private val usuarioRepo: UsuarioRepository = AppModule.usuarioRepository,
+    private val asignacionRepo: AsignacionRepository = AppModule.asignacionRepository
+) : ViewModel() {
 
-    private val baseDeDatos = getApplication<MpazApplication>().baseDeDatos
-    private val actividadRepo = ActividadRepository(baseDeDatos.actividadDao, baseDeDatos.preguntaDao)
-    private val usuarioRepo = UsuarioRepository(baseDeDatos.usuarioDao)
-    private val asignacionRepo = AsignacionRepository(baseDeDatos.asignacionDao)
+    private val _resumenes = MutableStateFlow<List<ResumenAsignacion>>(emptyList())
+    val resumenes: StateFlow<List<ResumenAsignacion>> = _resumenes.asStateFlow()
 
-    private val _asistenteId = MutableStateFlow(0L)
+    private val _estado = MutableStateFlow(ListaUiState())
+    val estado: StateFlow<ListaUiState> = _estado.asStateFlow()
 
-    // Cada cambio en las asignaciones de la asistente vuelve a armar la lista
-    val resumenes: StateFlow<List<ResumenAsignacion>> = _asistenteId
-        .flatMapLatest { id -> asignacionRepo.observarDeAsistente(id) }
-        .map { lista ->
-            lista.map { asignacion ->
-                ResumenAsignacion(
-                    asignacion = asignacion,
-                    estudiante = usuarioRepo.buscarPorId(asignacion.estudianteId)?.alias ?: "Estudiante",
-                    actividad = actividadRepo.buscarPorId(asignacion.actividadId)?.nombre ?: "Actividad",
-                    totalPreguntas = actividadRepo.preguntasDe(asignacion.actividadId).size
-                )
+    // Junta datos de los tres microservicios: asignaciones + nombre del estudiante + nombre de la actividad
+    fun cargar(asistenteId: Long) {
+        viewModelScope.launch {
+            _estado.update { it.copy(cargando = true, error = null) }
+            try {
+                val asignaciones = asignacionRepo.deAsistente(asistenteId)
+
+                // Se busca cada actividad y estudiante una sola vez, aunque se repitan
+                val actividades = asignaciones.map { it.actividadId }.distinct()
+                    .associateWith { id -> actividadRepo.buscarPorId(id) }
+                // Si una actividad ya no existe (null), no se piden sus preguntas
+                val totales = actividades.filterValues { it != null }.keys
+                    .associateWith { id -> actividadRepo.preguntasDe(id).size }
+                val estudiantes = asignaciones.map { it.estudianteId }.distinct()
+                    .associateWith { id -> usuarioRepo.buscarPorId(id) }
+
+                _resumenes.value = asignaciones.map { asignacion ->
+                    ResumenAsignacion(
+                        asignacion = asignacion,
+                        estudiante = estudiantes[asignacion.estudianteId]?.alias ?: "Estudiante",
+                        actividad = actividades[asignacion.actividadId]?.nombre ?: "Actividad",
+                        totalPreguntas = totales[asignacion.actividadId] ?: 0
+                    )
+                }
+            } catch (e: Exception) {
+                _estado.update { it.copy(error = mensajeDeError(e, "No se pudieron cargar los resultados")) }
+            } finally {
+                _estado.update { it.copy(cargando = false) }
             }
         }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
-
-    fun cargar(asistenteId: Long) {
-        _asistenteId.value = asistenteId
     }
 }

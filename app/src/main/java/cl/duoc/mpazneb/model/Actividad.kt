@@ -1,11 +1,7 @@
 package cl.duoc.mpazneb.model
 
-import androidx.room.Entity
-import androidx.room.PrimaryKey
-
-@Entity(tableName = "actividades")
+// Modelo que usa la app. Los datos vienen del microservicio ms-actividades.
 data class Actividad(
-    @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val nombre: String,
     val modulo: Modulo,

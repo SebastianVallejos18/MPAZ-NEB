@@ -1,13 +1,12 @@
 package cl.duoc.mpazneb.viewmodel
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import cl.duoc.mpazneb.MpazApplication
 import cl.duoc.mpazneb.data.repository.UsuarioRepository
+import cl.duoc.mpazneb.di.AppModule
 import cl.duoc.mpazneb.model.Perfil
 import cl.duoc.mpazneb.model.Usuario
-import cl.duoc.mpazneb.util.hashClave
+import cl.duoc.mpazneb.util.mensajeDeError
 import cl.duoc.mpazneb.util.validarAlias
 import cl.duoc.mpazneb.util.validarClave
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,11 +25,10 @@ data class LoginUiState(
     val usuarioIngresado: Usuario? = null
 )
 
-class LoginViewModel(application: Application) : AndroidViewModel(application) {
-
-    private val repositorio = UsuarioRepository(
-        getApplication<MpazApplication>().baseDeDatos.usuarioDao
-    )
+// El repositorio llega por constructor: en la app se usa el real (AppModule) y en las pruebas un mock
+class LoginViewModel(
+    private val repositorio: UsuarioRepository = AppModule.usuarioRepository
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
@@ -69,9 +67,10 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         ejecutar {
-            val usuario = repositorio.buscarPorAlias(estado.alias)
+            // El microservicio compara la contraseña y actualiza el último acceso
+            val usuario = repositorio.login(estado.alias, estado.clave)
 
-            if (usuario == null || !usuario.activo || usuario.claveHash != hashClave(estado.clave)) {
+            if (usuario == null) {
                 _uiState.update { it.copy(errorGeneral = "Alias o contraseña incorrectos") }
                 return@ejecutar
             }
@@ -83,12 +82,11 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
                 return@ejecutar
             }
 
-            repositorio.actualizar(usuario.copy(ultimoAcceso = System.currentTimeMillis()))
             _uiState.update { it.copy(usuarioIngresado = usuario) }
         }
     }
 
-    // Misma idea que executeOperation de tu profe: evita operaciones simultáneas y maneja isLoading
+    // Evita operaciones simultáneas y maneja el estado de carga
     private fun ejecutar(operacion: suspend () -> Unit) {
         viewModelScope.launch {
             if (_uiState.value.cargando) return@launch
@@ -96,7 +94,9 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 operacion()
             } catch (e: Exception) {
-                _uiState.update { it.copy(errorGeneral = "Ocurrió un error. Intenta nuevamente") }
+                _uiState.update {
+                    it.copy(errorGeneral = mensajeDeError(e, "Ocurrió un error. Intenta nuevamente"))
+                }
             } finally {
                 _uiState.update { it.copy(cargando = false) }
             }

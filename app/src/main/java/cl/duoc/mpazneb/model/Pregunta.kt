@@ -1,24 +1,6 @@
 package cl.duoc.mpazneb.model
 
-import androidx.room.Entity
-import androidx.room.ForeignKey
-import androidx.room.Index
-import androidx.room.PrimaryKey
-
-@Entity(
-    tableName = "preguntas",
-    foreignKeys = [
-        ForeignKey(
-            entity = Actividad::class,
-            parentColumns = ["id"],
-            childColumns = ["actividadId"],
-            onDelete = ForeignKey.CASCADE
-        )
-    ],
-    indices = [Index("actividadId")]
-)
 data class Pregunta(
-    @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val actividadId: Long,
     val tipo: String,

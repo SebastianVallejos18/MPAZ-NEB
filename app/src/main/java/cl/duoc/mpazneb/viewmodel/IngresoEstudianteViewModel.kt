@@ -1,13 +1,13 @@
 package cl.duoc.mpazneb.viewmodel
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import cl.duoc.mpazneb.MpazApplication
 import cl.duoc.mpazneb.data.repository.AsignacionRepository
 import cl.duoc.mpazneb.data.repository.UsuarioRepository
+import cl.duoc.mpazneb.di.AppModule
 import cl.duoc.mpazneb.model.EstadoAsignacion
 import cl.duoc.mpazneb.model.Usuario
+import cl.duoc.mpazneb.util.mensajeDeError
 import cl.duoc.mpazneb.util.validarCodigo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -24,11 +24,10 @@ data class IngresoEstudianteUiState(
     val asignacionId: Long? = null
 )
 
-class IngresoEstudianteViewModel(application: Application) : AndroidViewModel(application) {
-
-    private val baseDeDatos = getApplication<MpazApplication>().baseDeDatos
-    private val usuarioRepo = UsuarioRepository(baseDeDatos.usuarioDao)
-    private val asignacionRepo = AsignacionRepository(baseDeDatos.asignacionDao)
+class IngresoEstudianteViewModel(
+    private val usuarioRepo: UsuarioRepository = AppModule.usuarioRepository,
+    private val asignacionRepo: AsignacionRepository = AppModule.asignacionRepository
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(IngresoEstudianteUiState())
     val uiState: StateFlow<IngresoEstudianteUiState> = _uiState.asStateFlow()
@@ -49,6 +48,7 @@ class IngresoEstudianteViewModel(application: Application) : AndroidViewModel(ap
         }
 
         ejecutar {
+            // Primero se busca el código en ms-asignaciones y luego el estudiante en ms-usuarios
             val asignacion = asignacionRepo.buscarPorCodigo(codigo)
             val estudiante = asignacion?.let { usuarioRepo.buscarPorId(it.estudianteId) }
 
@@ -66,8 +66,8 @@ class IngresoEstudianteViewModel(application: Application) : AndroidViewModel(ap
                 return@ejecutar
             }
 
-            usuarioRepo.actualizar(estudiante.copy(ultimoAcceso = System.currentTimeMillis()))
-            _uiState.update { it.copy(estudiante = estudiante, asignacionId = asignacion.id) }
+            val actualizado = usuarioRepo.registrarAcceso(estudiante.id)
+            _uiState.update { it.copy(estudiante = actualizado, asignacionId = asignacion.id) }
         }
     }
 
@@ -78,7 +78,9 @@ class IngresoEstudianteViewModel(application: Application) : AndroidViewModel(ap
             try {
                 operacion()
             } catch (e: Exception) {
-                _uiState.update { it.copy(errorGeneral = "Ocurrió un error. Intenta nuevamente") }
+                _uiState.update {
+                    it.copy(errorGeneral = mensajeDeError(e, "Ocurrió un error. Intenta nuevamente"))
+                }
             } finally {
                 _uiState.update { it.copy(cargando = false) }
             }

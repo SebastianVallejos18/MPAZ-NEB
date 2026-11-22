@@ -23,6 +23,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -32,6 +33,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.material3.LinearProgressIndicator
+import cl.duoc.mpazneb.ui.components.MensajeError
 import cl.duoc.mpazneb.model.Actividad
 import cl.duoc.mpazneb.model.Dificultad
 import cl.duoc.mpazneb.model.Modulo
@@ -53,6 +56,12 @@ fun AsistenteScreen(
     val estudiantes by viewModel.estudiantes.collectAsState()
     val filtros by viewModel.filtros.collectAsState()
     val estado by viewModel.uiState.collectAsState()
+    val estadoLista by viewModel.estadoLista.collectAsState()
+
+    // Se cargan las actividades disponibles y los estudiantes desde los microservicios
+    LaunchedEffect(Unit) {
+        viewModel.recargar()
+    }
 
     Scaffold { innerPadding ->
         LazyColumn(
@@ -122,7 +131,13 @@ fun AsistenteScreen(
                 }
             }
 
-            if (actividades.isEmpty()) {
+            estadoLista.error?.let { error ->
+                item { MensajeError(mensaje = error, onReintentar = viewModel::recargar) }
+            }
+
+            if (estadoLista.cargando && actividades.isEmpty()) {
+                item { LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
+            } else if (actividades.isEmpty() && estadoLista.error == null) {
                 item {
                     Text(
                         text = "No hay actividades disponibles con esos filtros.",

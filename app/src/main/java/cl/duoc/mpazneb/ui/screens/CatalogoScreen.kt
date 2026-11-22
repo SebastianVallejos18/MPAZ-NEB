@@ -19,12 +19,15 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.material3.LinearProgressIndicator
+import cl.duoc.mpazneb.ui.components.MensajeError
 import cl.duoc.mpazneb.model.Actividad
 import cl.duoc.mpazneb.model.Dificultad
 import cl.duoc.mpazneb.model.EstadoActividad
@@ -49,6 +52,13 @@ fun CatalogoScreen(
 ) {
     val actividades by viewModel.actividades.collectAsState()
     val filtros by viewModel.filtros.collectAsState()
+    val estadoLista by viewModel.estado.collectAsState()
+
+    // Cada vez que la pantalla aparece se piden los datos al microservicio,
+    // así se ven los cambios hechos en el formulario
+    LaunchedEffect(Unit) {
+        viewModel.recargar()
+    }
 
     Scaffold(
         floatingActionButton = {
@@ -126,7 +136,13 @@ fun CatalogoScreen(
                 }
             }
 
-            if (actividades.isEmpty()) {
+            estadoLista.error?.let { error ->
+                item { MensajeError(mensaje = error, onReintentar = viewModel::recargar) }
+            }
+
+            if (estadoLista.cargando && actividades.isEmpty()) {
+                item { LinearProgressIndicator(modifier = Modifier.fillMaxWidth()) }
+            } else if (actividades.isEmpty() && estadoLista.error == null) {
                 item {
                     Text(
                         text = "No hay actividades que coincidan con los filtros elegidos.",

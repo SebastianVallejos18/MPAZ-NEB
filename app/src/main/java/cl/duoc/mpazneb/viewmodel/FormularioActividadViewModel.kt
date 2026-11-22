@@ -1,14 +1,14 @@
 package cl.duoc.mpazneb.viewmodel
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import cl.duoc.mpazneb.MpazApplication
 import cl.duoc.mpazneb.data.repository.ActividadRepository
+import cl.duoc.mpazneb.di.AppModule
 import cl.duoc.mpazneb.model.Actividad
 import cl.duoc.mpazneb.model.Dificultad
 import cl.duoc.mpazneb.model.EstadoActividad
 import cl.duoc.mpazneb.model.Modulo
+import cl.duoc.mpazneb.util.mensajeDeError
 import cl.duoc.mpazneb.util.validarContenido
 import cl.duoc.mpazneb.util.validarEstado
 import cl.duoc.mpazneb.util.validarInstrucciones
@@ -49,14 +49,9 @@ data class FormularioActividadUiState(
     val lecturaEnVoz: Boolean = false
 )
 
-class FormularioActividadViewModel(application: Application) : AndroidViewModel(application) {
-
-    private val baseDeDatos = getApplication<MpazApplication>().baseDeDatos
-
-    private val repositorio = ActividadRepository(
-        baseDeDatos.actividadDao,
-        baseDeDatos.preguntaDao
-    )
+class FormularioActividadViewModel(
+    private val repositorio: ActividadRepository = AppModule.actividadRepository
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(FormularioActividadUiState())
     val uiState: StateFlow<FormularioActividadUiState> = _uiState.asStateFlow()
@@ -69,7 +64,7 @@ class FormularioActividadViewModel(application: Application) : AndroidViewModel(
         cargado = true
         if (actividadId == 0L) return
 
-        ejecutar {
+        ejecutar("No se pudo cargar la actividad") {
             val actividad = repositorio.buscarPorId(actividadId) ?: return@ejecutar
             val cantidad = repositorio.preguntasDe(actividadId).size
             _uiState.update {
@@ -150,6 +145,8 @@ class FormularioActividadViewModel(application: Application) : AndroidViewModel(
         )
     }
 
+    fun onLecturaEnVozChange(valor: Boolean) = _uiState.update { it.copy(lecturaEnVoz = valor) }
+
     fun onGuardar() {
         val e = _uiState.value
 
@@ -182,7 +179,7 @@ class FormularioActividadViewModel(application: Application) : AndroidViewModel(
             return
         }
 
-        ejecutar {
+        ejecutar("No se pudo guardar. Intenta nuevamente") {
             val actividad = Actividad(
                 id = e.actividadId,
                 nombre = e.nombre.trim(),
@@ -199,29 +196,29 @@ class FormularioActividadViewModel(application: Application) : AndroidViewModel(
             )
 
             if (e.actividadId == 0L) {
-                val idNuevo = repositorio.crear(actividad, emptyList())
-                _uiState.update { it.copy(idCreado = idNuevo) }
+                // POST: el microservicio devuelve la actividad con su id nuevo.
+                // La pantalla navega a las preguntas de la actividad recién creada.
+                val creada = repositorio.crear(actividad)
+                _uiState.update { it.copy(idCreado = creada.id) }
             } else {
+                // PUT
                 repositorio.actualizar(actividad)
                 _uiState.update { it.copy(guardado = true) }
             }
-            _uiState.update { it.copy(guardado = true) }
         }
     }
 
-    private fun ejecutar(operacion: suspend () -> Unit) {
+    private fun ejecutar(mensajeError: String, operacion: suspend () -> Unit) {
         viewModelScope.launch {
             if (_uiState.value.cargando) return@launch
-            _uiState.update { it.copy(cargando = true) }
+            _uiState.update { it.copy(cargando = true, errorGeneral = null) }
             try {
                 operacion()
             } catch (ex: Exception) {
-                _uiState.update { it.copy(errorGeneral = "No se pudo guardar. Intenta nuevamente") }
+                _uiState.update { it.copy(errorGeneral = mensajeDeError(ex, mensajeError)) }
             } finally {
                 _uiState.update { it.copy(cargando = false) }
             }
         }
     }
-
-    fun onLecturaEnVozChange(valor: Boolean) = _uiState.update { it.copy(lecturaEnVoz = valor) }
 }

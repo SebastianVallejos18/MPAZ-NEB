@@ -1,19 +1,15 @@
 package cl.duoc.mpazneb.viewmodel
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import cl.duoc.mpazneb.MpazApplication
 import cl.duoc.mpazneb.data.repository.ActividadRepository
+import cl.duoc.mpazneb.di.AppModule
 import cl.duoc.mpazneb.model.EstadoActividad
 import cl.duoc.mpazneb.model.Pregunta
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import cl.duoc.mpazneb.util.mensajeDeError
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -24,42 +20,38 @@ data class PreguntasUiState(
     val mensaje: String? = null
 )
 
-@OptIn(ExperimentalCoroutinesApi::class)
-class PreguntasActividadViewModel(application: Application) : AndroidViewModel(application) {
-
-    private val baseDeDatos = getApplication<MpazApplication>().baseDeDatos
-
-    private val repositorio = ActividadRepository(
-        baseDeDatos.actividadDao,
-        baseDeDatos.preguntaDao
-    )
+class PreguntasActividadViewModel(
+    private val repositorio: ActividadRepository = AppModule.actividadRepository
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PreguntasUiState())
     val uiState: StateFlow<PreguntasUiState> = _uiState.asStateFlow()
 
-    private val _actividadId = MutableStateFlow(0L)
+    private val _preguntas = MutableStateFlow<List<Pregunta>>(emptyList())
+    val preguntas: StateFlow<List<Pregunta>> = _preguntas.asStateFlow()
 
-    val preguntas: StateFlow<List<Pregunta>> = _actividadId
-        .flatMapLatest { id -> repositorio.observarPreguntas(id) }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+    private var actividadId = 0L
 
-    fun cargar(actividadId: Long) {
-        if (_actividadId.value == actividadId) return
-        _actividadId.value = actividadId
+    // Se llama cada vez que la pantalla aparece (también al volver del formulario)
+    fun cargar(idActividad: Long) {
+        actividadId = idActividad
         viewModelScope.launch {
-            val actividad = repositorio.buscarPorId(actividadId) ?: return@launch
-            _uiState.update {
-                it.copy(nombreActividad = actividad.nombre, estadoActividad = actividad.estado)
+            try {
+                val actividad = repositorio.buscarPorId(idActividad)
+                if (actividad != null) {
+                    _uiState.update {
+                        it.copy(nombreActividad = actividad.nombre, estadoActividad = actividad.estado)
+                    }
+                }
+                _preguntas.value = repositorio.preguntasDe(idActividad)
+            } catch (e: Exception) {
+                _uiState.update { it.copy(mensaje = mensajeDeError(e, "No se pudieron cargar las preguntas")) }
             }
         }
     }
 
     fun pedirEliminar(pregunta: Pregunta) {
-        val esLaUnica = preguntas.value.size == 1
+        val esLaUnica = _preguntas.value.size == 1
         if (esLaUnica && _uiState.value.estadoActividad == EstadoActividad.Disponible) {
             _uiState.update {
                 it.copy(
@@ -80,10 +72,13 @@ class PreguntasActividadViewModel(application: Application) : AndroidViewModel(a
         val pregunta = _uiState.value.preguntaPorEliminar ?: return
         viewModelScope.launch {
             try {
-                repositorio.eliminarPregunta(pregunta)
+                // DELETE en el microservicio y luego se vuelve a pedir la lista actualizada
+                repositorio.eliminarPregunta(pregunta.id)
+                _preguntas.value = repositorio.preguntasDe(actividadId)
+                _uiState.update { it.copy(mensaje = "Pregunta eliminada") }
             } catch (e: Exception) {
                 _uiState.update {
-                    it.copy(mensaje = "No se pudo eliminar la pregunta. Puede tener respuestas registradas")
+                    it.copy(mensaje = mensajeDeError(e, "No se pudo eliminar la pregunta"))
                 }
             } finally {
                 _uiState.update { it.copy(preguntaPorEliminar = null) }

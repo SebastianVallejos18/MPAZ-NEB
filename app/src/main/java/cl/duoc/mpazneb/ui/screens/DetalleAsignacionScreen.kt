@@ -10,10 +10,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -41,6 +43,27 @@ fun DetalleAsignacionScreen(
 
     LaunchedEffect(asignacionId) {
         viewModel.cargar(asignacionId)
+    }
+
+    // Después de eliminar la asignación se vuelve a la lista de resultados
+    LaunchedEffect(estado.eliminada) {
+        if (estado.eliminada) onVolver()
+    }
+
+    if (estado.confirmandoEliminar) {
+        AlertDialog(
+            onDismissRequest = viewModel::cancelarEliminar,
+            title = { Text("¿Eliminar asignación?") },
+            text = {
+                Text("Se borrarán la asignación y todas sus respuestas. El código dejará de funcionar.")
+            },
+            confirmButton = {
+                TextButton(onClick = viewModel::confirmarEliminar) { Text("Eliminar") }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::cancelarEliminar) { Text("Cancelar") }
+            }
+        )
     }
 
     Scaffold { innerPadding ->
@@ -145,6 +168,20 @@ fun DetalleAsignacionScreen(
                         } else {
                             Text("Guardar observación", style = MaterialTheme.typography.titleMedium)
                         }
+                    }
+
+                    OutlinedButton(
+                        onClick = viewModel::pedirEliminar,
+                        enabled = !estado.guardando,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                    ) {
+                        Text(
+                            "Eliminar asignación",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.error
+                        )
                     }
                 }
             }

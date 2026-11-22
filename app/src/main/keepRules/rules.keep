@@ -10,3 +10,5 @@
 #-keepclassmembers class fqcn.of.javascript.interface.for.webview {
 #   public *;
 #}
+# Gson arma estas clases por reflexión a partir del JSON: no deben renombrarse
+-keep class cl.duoc.mpazneb.data.remote.dto.** { *; }

@@ -3,17 +3,16 @@ package cl.duoc.mpazneb.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.room.withTransaction
-import cl.duoc.mpazneb.MpazApplication
 import cl.duoc.mpazneb.data.repository.ActividadRepository
 import cl.duoc.mpazneb.data.repository.AsignacionRepository
-import cl.duoc.mpazneb.data.repository.RespuestaRepository
+import cl.duoc.mpazneb.di.AppModule
 import cl.duoc.mpazneb.model.Asignacion
 import cl.duoc.mpazneb.model.EstadoAsignacion
 import cl.duoc.mpazneb.model.Pregunta
 import cl.duoc.mpazneb.model.Respuesta
 import cl.duoc.mpazneb.util.LectorVoz
 import cl.duoc.mpazneb.util.Vibrador
+import cl.duoc.mpazneb.util.mensajeDeError
 import cl.duoc.mpazneb.util.permiteLecturaEnVoz
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -46,22 +45,21 @@ data class SesionEstudianteUiState(
     val intentosPermitidos: Int = 1,
     val vozActiva: Boolean = false,
     val mensaje: String? = null
-
 ) {
     val preguntaActual: Pregunta? get() = preguntas.getOrNull(indice)
     val puedeReintentar: Boolean get() = intento < intentosPermitidos
 }
 
-class SesionEstudianteViewModel(application: Application) : AndroidViewModel(application) {
+// AndroidViewModel porque el lector de voz y el vibrador necesitan el contexto de la app.
+// @JvmOverloads crea el constructor (Application) que usa viewModel(); en las pruebas se pasan mocks.
+class SesionEstudianteViewModel @JvmOverloads constructor(
+    application: Application,
+    private val actividadRepo: ActividadRepository = AppModule.actividadRepository,
+    private val asignacionRepo: AsignacionRepository = AppModule.asignacionRepository,
+    private val lector: LectorVoz = LectorVoz(application),
+    private val vibrador: Vibrador = Vibrador(application)
+) : AndroidViewModel(application) {
 
-    private val baseDeDatos = getApplication<MpazApplication>().baseDeDatos
-    private val actividadRepo = ActividadRepository(baseDeDatos.actividadDao, baseDeDatos.preguntaDao)
-    private val asignacionRepo = AsignacionRepository(baseDeDatos.asignacionDao)
-    private val respuestaRepo = RespuestaRepository(baseDeDatos.respuestaDao)
-
-    private val lector = LectorVoz(application)
-
-    private val vibrador = Vibrador(application)
     val hablando: StateFlow<Boolean> = lector.hablando
     val vozDisponible: StateFlow<Boolean> = lector.disponible
 
@@ -92,24 +90,25 @@ class SesionEstudianteViewModel(application: Application) : AndroidViewModel(app
                     return@launch
                 }
 
-                var actual = encontrada
+                var actual: Asignacion = encontrada
                 var etapa: EtapaSesion = EtapaSesion.Instrucciones
                 var indice = 0
 
                 when (encontrada.estado) {
                     EstadoAsignacion.Pendiente -> {
-                        // Primera vez que entra: se inicia el intento 1
-                        actual = encontrada.copy(
-                            estado = EstadoAsignacion.EnDesarrollo,
-                            intentos = 1,
-                            aciertos = 0,
-                            errores = 0
+                        // Primera vez que entra: se inicia el intento 1 en el microservicio
+                        actual = asignacionRepo.actualizarProgreso(
+                            encontrada.copy(
+                                estado = EstadoAsignacion.EnDesarrollo,
+                                intentos = 1,
+                                aciertos = 0,
+                                errores = 0
+                            )
                         )
-                        asignacionRepo.actualizar(actual)
                     }
                     EstadoAsignacion.EnDesarrollo -> {
                         // Retoma donde quedó: tantas preguntas respondidas como respuestas del intento
-                        indice = respuestaRepo.deIntento(encontrada.id, encontrada.intentos).size
+                        indice = asignacionRepo.respuestasDe(encontrada.id, encontrada.intentos).size
                         etapa = if (indice >= preguntas.size) EtapaSesion.Resultado else EtapaSesion.Respondiendo
                     }
                     EstadoAsignacion.Finalizada -> {
@@ -139,12 +138,14 @@ class SesionEstudianteViewModel(application: Application) : AndroidViewModel(app
                     )
                 }
 
-                // Si quedó en el resultado del último intento sin cerrarse, se cierra ahora
-                if (etapa == EtapaSesion.Resultado && actual.intentos >= actividad.intentosPermitidos) {
-                    finalizar()
+                if (etapa == EtapaSesion.Resultado) {
+                    // Si quedó en el resultado del último intento sin cerrarse, se cierra ahora
+                    if (actual.intentos >= actividad.intentosPermitidos) finalizar()
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(cargando = false, mensaje = "No se pudo abrir la actividad") }
+                _uiState.update {
+                    it.copy(cargando = false, mensaje = mensajeDeError(e, "No se pudo abrir la actividad"))
+                }
             }
         }
     }
@@ -180,28 +181,22 @@ class SesionEstudianteViewModel(application: Application) : AndroidViewModel(app
         if (e.guardando) return
 
         val acerto = elegida == pregunta.respuestaCorrecta
-        val actualizada = actual.copy(
-            aciertos = actual.aciertos + if (acerto) 1 else 0,
-            errores = actual.errores + if (acerto) 0 else 1
-        )
 
         _uiState.update { it.copy(confirmando = false, guardando = true) }
 
         viewModelScope.launch {
             try {
-                // Las dos escrituras se guardan juntas o no se guarda ninguna
-                baseDeDatos.withTransaction {
-                    respuestaRepo.registrar(
-                        Respuesta(
-                            asignacionId = actual.id,
-                            preguntaId = pregunta.id,
-                            intento = e.intento,
-                            opcionElegida = elegida,
-                            esCorrecta = acerto
-                        )
+                // El microservicio guarda la respuesta y suma el acierto/error en una transacción,
+                // y devuelve la asignación ya actualizada
+                val actualizada = asignacionRepo.registrarRespuesta(
+                    Respuesta(
+                        asignacionId = actual.id,
+                        preguntaId = pregunta.id,
+                        intento = e.intento,
+                        opcionElegida = elegida,
+                        esCorrecta = acerto
                     )
-                    asignacionRepo.actualizar(actualizada)
-                }
+                )
                 asignacion = actualizada
                 if (acerto) vibrador.acierto() else vibrador.refuerzo()
                 _uiState.update {
@@ -213,7 +208,9 @@ class SesionEstudianteViewModel(application: Application) : AndroidViewModel(app
                     )
                 }
             } catch (ex: Exception) {
-                _uiState.update { it.copy(mensaje = "No se pudo guardar tu respuesta. Intenta de nuevo") }
+                _uiState.update {
+                    it.copy(mensaje = mensajeDeError(ex, "No se pudo guardar tu respuesta. Intenta de nuevo"))
+                }
             } finally {
                 _uiState.update { it.copy(guardando = false) }
             }
@@ -241,10 +238,11 @@ class SesionEstudianteViewModel(application: Application) : AndroidViewModel(app
         val actual = asignacion ?: return
         if (!_uiState.value.puedeReintentar) return
 
-        val nueva = actual.copy(intentos = actual.intentos + 1, aciertos = 0, errores = 0)
         viewModelScope.launch {
             try {
-                asignacionRepo.actualizar(nueva)
+                val nueva = asignacionRepo.actualizarProgreso(
+                    actual.copy(intentos = actual.intentos + 1, aciertos = 0, errores = 0)
+                )
                 asignacion = nueva
                 _uiState.update {
                     it.copy(
@@ -257,7 +255,9 @@ class SesionEstudianteViewModel(application: Application) : AndroidViewModel(app
                     )
                 }
             } catch (ex: Exception) {
-                _uiState.update { it.copy(mensaje = "No se pudo iniciar otro intento. Intenta de nuevo") }
+                _uiState.update {
+                    it.copy(mensaje = mensajeDeError(ex, "No se pudo iniciar otro intento. Intenta de nuevo"))
+                }
             }
         }
     }
@@ -273,12 +273,10 @@ class SesionEstudianteViewModel(application: Application) : AndroidViewModel(app
     private suspend fun finalizar() {
         val actual = asignacion ?: return
         if (actual.estado == EstadoAsignacion.Finalizada) return
-        val finalizada = actual.copy(estado = EstadoAsignacion.Finalizada)
         try {
-            asignacionRepo.actualizar(finalizada)
-            asignacion = finalizada
+            asignacion = asignacionRepo.actualizarProgreso(actual.copy(estado = EstadoAsignacion.Finalizada))
         } catch (ex: Exception) {
-            _uiState.update { it.copy(mensaje = "No se pudo cerrar la actividad") }
+            _uiState.update { it.copy(mensaje = mensajeDeError(ex, "No se pudo cerrar la actividad")) }
         }
     }
 

@@ -1,28 +1,21 @@
 package cl.duoc.mpazneb.viewmodel
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import cl.duoc.mpazneb.MpazApplication
 import cl.duoc.mpazneb.data.repository.ActividadRepository
 import cl.duoc.mpazneb.data.repository.AsignacionRepository
 import cl.duoc.mpazneb.data.repository.UsuarioRepository
+import cl.duoc.mpazneb.di.AppModule
 import cl.duoc.mpazneb.model.Actividad
-import cl.duoc.mpazneb.model.Asignacion
 import cl.duoc.mpazneb.model.Dificultad
 import cl.duoc.mpazneb.model.EstadoActividad
 import cl.duoc.mpazneb.model.Modulo
 import cl.duoc.mpazneb.model.Perfil
 import cl.duoc.mpazneb.model.Usuario
-import cl.duoc.mpazneb.util.generarCodigo
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import cl.duoc.mpazneb.util.mensajeDeError
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -35,17 +28,11 @@ data class AsistenteUiState(
     val cargando: Boolean = false
 )
 
-@OptIn(ExperimentalCoroutinesApi::class)
-class AsistenteViewModel(application: Application) : AndroidViewModel(application) {
-
-    private val baseDeDatos = getApplication<MpazApplication>().baseDeDatos
-
-    private val actividadRepo = ActividadRepository(
-        baseDeDatos.actividadDao,
-        baseDeDatos.preguntaDao
-    )
-    private val usuarioRepo = UsuarioRepository(baseDeDatos.usuarioDao)
-    private val asignacionRepo = AsignacionRepository(baseDeDatos.asignacionDao)
+class AsistenteViewModel(
+    private val actividadRepo: ActividadRepository = AppModule.actividadRepository,
+    private val usuarioRepo: UsuarioRepository = AppModule.usuarioRepository,
+    private val asignacionRepo: AsignacionRepository = AppModule.asignacionRepository
+) : ViewModel() {
 
     private val _filtros = MutableStateFlow(FiltrosCatalogo())
     val filtros: StateFlow<FiltrosCatalogo> = _filtros.asStateFlow()
@@ -53,36 +40,48 @@ class AsistenteViewModel(application: Application) : AndroidViewModel(applicatio
     private val _uiState = MutableStateFlow(AsistenteUiState())
     val uiState: StateFlow<AsistenteUiState> = _uiState.asStateFlow()
 
-    // Solo actividades disponibles: la asistente nunca ve borradores ni desactivadas
-    val actividades: StateFlow<List<Actividad>> = _filtros
-        .flatMapLatest { f ->
-            actividadRepo.filtrar(f.modulo, f.curso, f.dificultad, EstadoActividad.Disponible)
-        }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+    private val _actividades = MutableStateFlow<List<Actividad>>(emptyList())
+    val actividades: StateFlow<List<Actividad>> = _actividades.asStateFlow()
 
-    val estudiantes: StateFlow<List<Usuario>> = usuarioRepo
-        .observarPorPerfil(Perfil.Estudiante)
-        .map { lista -> lista.filter { it.activo } }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+    private val _estudiantes = MutableStateFlow<List<Usuario>>(emptyList())
+    val estudiantes: StateFlow<List<Usuario>> = _estudiantes.asStateFlow()
+
+    private val _estadoLista = MutableStateFlow(ListaUiState())
+    val estadoLista: StateFlow<ListaUiState> = _estadoLista.asStateFlow()
+
+    fun recargar() {
+        val f = _filtros.value
+        viewModelScope.launch {
+            _estadoLista.update { it.copy(cargando = true, error = null) }
+            try {
+                // Solo actividades disponibles: la asistente nunca ve borradores ni desactivadas
+                _actividades.value = actividadRepo.filtrar(
+                    f.modulo, f.curso, f.dificultad, EstadoActividad.Disponible
+                )
+                _estudiantes.value = usuarioRepo.listarPorPerfil(Perfil.Estudiante).filter { it.activo }
+            } catch (e: Exception) {
+                _estadoLista.update {
+                    it.copy(error = mensajeDeError(e, "No se pudieron cargar las actividades"))
+                }
+            } finally {
+                _estadoLista.update { it.copy(cargando = false) }
+            }
+        }
+    }
 
     fun filtrarPorModulo(modulo: Modulo?) {
         _filtros.update { it.copy(modulo = modulo) }
+        recargar()
     }
 
     fun filtrarPorCurso(curso: Int?) {
         _filtros.update { it.copy(curso = curso) }
+        recargar()
     }
 
     fun filtrarPorDificultad(dificultad: Dificultad?) {
         _filtros.update { it.copy(dificultad = dificultad) }
+        recargar()
     }
 
     fun pedirAsignar(actividad: Actividad) {
@@ -119,32 +118,20 @@ class AsistenteViewModel(application: Application) : AndroidViewModel(applicatio
             if (_uiState.value.cargando) return@launch
             _uiState.update { it.copy(cargando = true) }
             try {
-                // Se repite hasta encontrar un código que no exista todavía
-                var codigo = generarCodigo()
-                while (asignacionRepo.buscarPorCodigo(codigo) != null) {
-                    codigo = generarCodigo()
-                }
-
-                asignacionRepo.crear(
-                    Asignacion(
-                        actividadId = actividad.id,
-                        estudianteId = estudiante.id,
-                        asistenteId = asistenteId,
-                        codigoTemporal = codigo
-                    )
-                )
+                // El microservicio genera un código único y lo devuelve en la asignación creada
+                val asignacion = asignacionRepo.crear(actividad.id, estudiante.id, asistenteId)
 
                 _uiState.update {
                     it.copy(
                         actividadPorAsignar = null,
                         estudianteElegido = null,
-                        codigoGenerado = codigo,
+                        codigoGenerado = asignacion.codigoTemporal,
                         aliasAsignado = estudiante.alias
                     )
                 }
             } catch (e: Exception) {
                 _uiState.update {
-                    it.copy(errorAsignacion = "No se pudo crear la asignación. Intenta nuevamente")
+                    it.copy(errorAsignacion = mensajeDeError(e, "No se pudo crear la asignación. Intenta nuevamente"))
                 }
             } finally {
                 _uiState.update { it.copy(cargando = false) }

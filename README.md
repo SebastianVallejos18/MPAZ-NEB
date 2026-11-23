@@ -255,6 +255,12 @@ Pruebas con `createComposeRule` para `MensajeError` y `TarjetaPokemon`. Se ejecu
 
 Con `keystore.properties` configurado también se puede generar desde la terminal con `./gradlew assembleRelease`.
 
+![APK firmado y llave](docs/apk-firmado.png)
+
+**APK y llave en el repositorio:**
+
+![Llave .jks y APK](docs/llave-jks.png)
+
 > En un proyecto real, la llave `.jks` y sus contraseñas no se suben al repositorio; aquí se incluyen porque la evaluación lo solicita.
 
 ## Formularios y validaciones

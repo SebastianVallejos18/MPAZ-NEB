@@ -24,7 +24,7 @@ object RetrofitInstance {
     const val URL_ACTIVIDADES = "http://$IP_SERVIDOR:8082/"
     const val URL_ASIGNACIONES = "http://$IP_SERVIDOR:8083/"
 
-    // API externa
+    // PokeAPI
     const val URL_POKEAPI = "https://pokeapi.co/api/v2/"
 
     // Muestra en el Logcat cada petición y respuesta (útil para la defensa)

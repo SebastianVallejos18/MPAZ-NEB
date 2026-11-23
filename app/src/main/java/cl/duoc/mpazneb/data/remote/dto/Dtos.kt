@@ -1,6 +1,5 @@
 package cl.duoc.mpazneb.data.remote.dto
 
-// DTO = Data Transfer Object: la forma exacta del JSON que viaja por la red.
 // Los enums viajan como texto ("LECTURA", "DISPONIBLE"...) y se convierten a sealed classes en Mapeadores.kt.
 // Todos los campos tienen valor por defecto para que Gson no deje nulls si falta un campo.
 

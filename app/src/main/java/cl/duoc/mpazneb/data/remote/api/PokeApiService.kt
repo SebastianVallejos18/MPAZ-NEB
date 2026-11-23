@@ -4,7 +4,7 @@ import cl.duoc.mpazneb.data.remote.dto.PokemonDto
 import retrofit2.http.GET
 import retrofit2.http.Path
 
-// API externa pública: https://pokeapi.co (no necesita clave)
+// PokeAPI: https://pokeapi.co
 interface PokeApiService {
 
     // GET https://pokeapi.co/api/v2/pokemon/25

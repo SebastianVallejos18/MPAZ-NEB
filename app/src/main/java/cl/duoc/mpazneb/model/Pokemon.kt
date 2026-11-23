@@ -1,6 +1,6 @@
 package cl.duoc.mpazneb.model
 
-// Premio que se muestra al estudiante. Viene de la API externa PokeAPI.
+// Premio que se muestra al estudiante. Viene de PokeAPI.
 data class Pokemon(
     val id: Int,
     val nombre: String,

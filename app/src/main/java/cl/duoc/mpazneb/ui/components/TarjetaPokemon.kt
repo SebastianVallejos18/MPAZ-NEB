@@ -18,7 +18,7 @@ import cl.duoc.mpazneb.model.Pokemon
 import cl.duoc.mpazneb.util.etiquetaTipoPokemon
 import coil.compose.AsyncImage
 
-// Premio del estudiante: un Pokémon obtenido desde la API externa PokeAPI
+// Premio del estudiante: un Pokémon obtenido desde la PokeAPI
 @Composable
 fun TarjetaPokemon(
     pokemon: Pokemon?,

@@ -290,7 +290,7 @@ class SesionEstudianteViewModel @JvmOverloads constructor(
         }
     }
 
-    // API externa: si el estudiante tuvo al menos un acierto, se muestra un Pokémon como premio.
+    // si el estudiante tuvo al menos un acierto, se muestra un Pokémon como premio.
     // Si la PokeAPI falla, la sesión sigue normal: el premio es un extra, no bloquea nada.
     private fun cargarPremio() {
         val e = _uiState.value
